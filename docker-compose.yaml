@@ -1,0 +1,100 @@
+version: "3.5"
+services:
+
+
+  postgres:
+      image: postgres:14-alpine
+      container_name: postgres
+      command: -c 'max_connections=600'
+      #100 padrão
+      hostname: postgres
+      ports:
+        - 5432:5432
+      volumes:
+        - ~/apps/teste:/var/lib/postgresql/data
+      environment:
+        - POSTGRES_PASSWORD=123456
+        - POSTGRES_USER=postgres
+        - POSTGRES_DB=Rinha
+        - TZ=America/Sao_Paulo  # Substitua pelo fuso horário desejado
+      networks:
+        - rinha-network  
+      #deploy:
+        #resources:
+          #limits:
+            #cpus: "0.60" 
+            #memory: "200MB"
+            #200MB
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: 123456
+    ports:
+      - 8080:80
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
+    networks:
+      - rinha-network
+
+  api01: &api
+    build: ./Rinha2024
+    hostname: api01
+    container_name: api01
+    environment:
+      - API_PORT=80
+      - DB_CONNECTION=User ID=postgres;Password=123456;Host=postgres;Port=5432;Database=Rinha;Pooling=true;Maximum Pool Size=300;Connection Lifetime=0;Include Error Detail=true;
+      - TZ=America/Sao_Paulo  # Substitua pelo fuso horário desejado
+
+    networks:
+      - rinha-network
+    depends_on:
+      - postgres
+    #deploy:
+      #resources:
+        #limits:
+          #cpus: "0.35"
+          #memory: "165MB"
+          #165MB
+
+  api02:
+    <<: *api
+    hostname: api02
+    container_name: api02
+    environment:
+      - API_PORT=80
+      - DB_CONNECTION=User ID=postgres;Password=123456;Host=postgres;Port=5432;Database=Rinha;Pooling=true;Maximum Pool Size=300;Connection Lifetime=0;Include Error Detail=true;
+      - TZ=America/Sao_Paulo  # Substitua pelo fuso horário desejado
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  
+    ports:
+      - "9999:9999"
+    networks:
+      - rinha-network
+    depends_on:
+      - api01
+      - api02
+    environment:
+      - TZ=America/Sao_Paulo  # Substitua pelo fuso horário desejado
+    #deploy:
+      #resources:
+        #limits:
+          #cpus: "0.80" #20
+          #memory: "400MB"
+          #20MB 
+networks:
+  rinha-network:
+    driver: Host
+    name: rinha-network
+    external: true
+      
